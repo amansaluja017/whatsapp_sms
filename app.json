@@ -7,7 +7,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app requires location permission to detect current Wi-Fi network SSID."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -15,10 +18,29 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_WIFI_STATE",
+        "CHANGE_WIFI_STATE",
+        "ACCESS_NETWORK_STATE",
+        "NEARBY_WIFI_DEVICES"
+      ],
+      "softwareKeyboardLayoutMode": "resize",
+      "package": "com.dreamvisaimmigration001.whatsapp_sms"
     },
+    "plugins": [
+      "expo-location",
+      "react-native-wifi-reborn"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f15435af-3da4-470e-8009-759e33c57d6e"
+      }
     }
   }
 }
