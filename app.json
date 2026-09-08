@@ -9,7 +9,12 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app requires location permission to detect current Wi-Fi network SSID."
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
+        "NSLocationWhenInUseUsageDescription": "This app requires location permission to detect current Wi-Fi network SSID.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses background location to detect your target Wi-Fi router and trigger messaging."
       }
     },
     "android": {
@@ -22,16 +27,28 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
         "ACCESS_WIFI_STATE",
         "CHANGE_WIFI_STATE",
         "ACCESS_NETWORK_STATE",
-        "NEARBY_WIFI_DEVICES"
+        "NEARBY_WIFI_DEVICES",
+        "WAKE_LOCK"
       ],
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.dreamvisaimmigration001.whatsapp_sms"
     },
     "plugins": [
-      "expo-location",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to detect Wi-Fi connection in the background.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
       "react-native-wifi-reborn"
     ],
     "web": {

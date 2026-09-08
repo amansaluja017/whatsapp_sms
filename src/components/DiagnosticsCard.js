@@ -6,6 +6,8 @@ export default function DiagnosticsCard({
   currentSSID,
   isTriggeredToday,
   lastTriggeredDate,
+  lastTriggeredTime,
+  isBackgroundActive,
   hasNativeModule,
   ipAddress,
   locationPermission,
@@ -30,7 +32,16 @@ export default function DiagnosticsCard({
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Daily Auto-Trigger</Text>
           <Text style={styles.infoValue}>
-            {isTriggeredToday ? `Sent Today (${lastTriggeredDate})` : 'Ready'}
+            {isTriggeredToday ? `Sent Today (${lastTriggeredTime || lastTriggeredDate})` : 'Ready & Armed'}
+          </Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Phone Background Runner</Text>
+          <Text style={[styles.infoValue, { color: isBackgroundActive ? '#10B981' : COLORS.textMuted }]}>
+            {isBackgroundActive ? 'Active (Foreground Service)' : 'Stopped'}
           </Text>
         </View>
 
@@ -113,16 +124,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 9,
+    paddingVertical: 8,
+    gap: 8,
   },
   infoLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.textMuted,
+    flexShrink: 0,
   },
   infoValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.white,
+    textAlign: 'right',
+    flex: 1,
+    minWidth: 0,
   },
   secondaryButton: {
     backgroundColor: COLORS.surfaceElevated,
@@ -130,12 +146,16 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderStrong,
     borderRadius: 10,
     paddingVertical: 12,
+    paddingHorizontal: 12,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   secondaryButtonText: {
     color: COLORS.white,
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
   divider: {
     height: 1,

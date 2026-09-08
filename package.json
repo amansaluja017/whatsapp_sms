@@ -5,10 +5,12 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~55.0.0",
+    "expo-background-fetch": "~55.0.20",
     "expo-dev-client": "~55.0.40",
     "expo-location": "~55.1.14",
     "expo-network": "~55.0.18",
     "expo-status-bar": "~55.0.6",
+    "expo-task-manager": "~55.0.20",
     "react": "19.2.0",
     "react-native": "0.83.10",
     "react-native-network-info": "^5.2.2",
@@ -21,6 +23,15 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "bot": "node bot-server/index.js"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-network-info"
+        ]
+      }
+    }
   },
   "private": true
 }

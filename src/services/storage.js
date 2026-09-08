@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   LAST_TRIGGER_DATE_KEY,
+  LAST_TRIGGER_TIME_KEY,
   LAST_TRIGGER_SSID_KEY,
+  LAST_TRIGGER_DETAILS_KEY,
+  BACKGROUND_MONITORING_KEY,
   BOT_SERVER_URL_KEY,
   TARGET_SSID_KEY,
   SAVED_NETWORKS_KEY,
@@ -18,7 +21,10 @@ export async function loadStoredSettings() {
   try {
     const [
       savedDate,
+      savedTriggerTime,
       savedTriggerSSID,
+      savedDetails,
+      savedBgMonitoring,
       savedBotUrl,
       savedTarget,
       savedNets,
@@ -27,7 +33,10 @@ export async function loadStoredSettings() {
       savedTemplate,
     ] = await Promise.all([
       AsyncStorage.getItem(LAST_TRIGGER_DATE_KEY),
+      AsyncStorage.getItem(LAST_TRIGGER_TIME_KEY),
       AsyncStorage.getItem(LAST_TRIGGER_SSID_KEY),
+      AsyncStorage.getItem(LAST_TRIGGER_DETAILS_KEY),
+      AsyncStorage.getItem(BACKGROUND_MONITORING_KEY),
       AsyncStorage.getItem(BOT_SERVER_URL_KEY),
       AsyncStorage.getItem(TARGET_SSID_KEY),
       AsyncStorage.getItem(SAVED_NETWORKS_KEY),
@@ -60,9 +69,22 @@ export async function loadStoredSettings() {
       } catch (e) {}
     }
 
+    let parsedDetails = null;
+    if (savedDetails) {
+      try {
+        parsedDetails = JSON.parse(savedDetails);
+      } catch (e) {}
+    }
+
+    // Default background monitoring to enabled (true)
+    const backgroundMonitoring = savedBgMonitoring !== null ? savedBgMonitoring === 'true' : true;
+
     return {
       lastTriggeredDate: savedDate || null,
+      lastTriggeredTime: savedTriggerTime || null,
       lastTriggeredSSID: savedTriggerSSID || null,
+      lastTriggerDetails: parsedDetails,
+      backgroundMonitoring,
       botUrl: savedBotUrl || DEFAULT_BOT_URL,
       targetSSID: savedTarget || DEFAULT_TARGET_SSID,
       savedNetworks: parsedNets,
@@ -100,16 +122,32 @@ export async function saveBotUrl(url) {
   return AsyncStorage.setItem(BOT_SERVER_URL_KEY, url);
 }
 
-export async function saveTriggerEvent(dateStr, ssid) {
-  await Promise.all([
+export async function saveBackgroundMonitoring(enabled) {
+  return AsyncStorage.setItem(BACKGROUND_MONITORING_KEY, enabled ? 'true' : 'false');
+}
+
+export async function saveTriggerEvent(dateStr, ssid, timeStr = null, details = null) {
+  const tasks = [
     AsyncStorage.setItem(LAST_TRIGGER_DATE_KEY, dateStr),
-    AsyncStorage.setItem(LAST_TRIGGER_SSID_KEY, ssid),
-  ]);
+    AsyncStorage.setItem(LAST_TRIGGER_SSID_KEY, ssid || ''),
+  ];
+
+  if (timeStr) {
+    tasks.push(AsyncStorage.setItem(LAST_TRIGGER_TIME_KEY, timeStr));
+  }
+
+  if (details) {
+    tasks.push(AsyncStorage.setItem(LAST_TRIGGER_DETAILS_KEY, JSON.stringify(details)));
+  }
+
+  await Promise.all(tasks);
 }
 
 export async function clearDailyTrigger() {
   await Promise.all([
     AsyncStorage.removeItem(LAST_TRIGGER_DATE_KEY),
+    AsyncStorage.removeItem(LAST_TRIGGER_TIME_KEY),
     AsyncStorage.removeItem(LAST_TRIGGER_SSID_KEY),
+    AsyncStorage.removeItem(LAST_TRIGGER_DETAILS_KEY),
   ]);
 }

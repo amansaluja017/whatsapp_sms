@@ -1,8 +1,11 @@
-export const DEFAULT_TARGET_SSID = 'Airtel_bhup_5604';
-export const TARGET_MESSAGE = 'hii';
+export const DEFAULT_TARGET_SSID = process.env.EXPO_PUBLIC_DEFAULT_TARGET_SSID || '';
+export const TARGET_MESSAGE = process.env.EXPO_PUBLIC_TARGET_MESSAGE || '';
 
 export const LAST_TRIGGER_DATE_KEY = '@whatsapp_sms:last_trigger_date';
+export const LAST_TRIGGER_TIME_KEY = '@whatsapp_sms:last_trigger_time';
 export const LAST_TRIGGER_SSID_KEY = '@whatsapp_sms:last_trigger_ssid';
+export const LAST_TRIGGER_DETAILS_KEY = '@whatsapp_sms:last_trigger_details';
+export const BACKGROUND_MONITORING_KEY = '@whatsapp_sms:background_monitoring_enabled';
 export const BOT_SERVER_URL_KEY = '@whatsapp_sms:bot_server_url';
 export const TARGET_SSID_KEY = '@whatsapp_sms:target_ssid';
 export const SAVED_NETWORKS_KEY = '@whatsapp_sms:saved_networks';
@@ -11,15 +14,28 @@ export const CACHED_CHATS_KEY = '@whatsapp_sms:cached_chats';
 
 export const MESSAGE_TEMPLATE_KEY = '@whatsapp_sms:message_template';
 
-export const DEFAULT_BOT_URL = 'http://10.59.233.189:3001';
-export const DEFAULT_MESSAGE_TEMPLATE = 'Hello ${name}! Connected to Wi-Fi at ${time}.';
+export const DEFAULT_BOT_URL = process.env.EXPO_PUBLIC_BOT_URL || 'http://localhost:3001';
+export const DEFAULT_MESSAGE_TEMPLATE = process.env.EXPO_PUBLIC_DEFAULT_MESSAGE_TEMPLATE || '';
 
-export const DEFAULT_RECIPIENT = {
-  id: '919306234357@c.us',
-  name: '+919306234357',
-  isGroup: false,
-  phone: '+919306234357',
-};
+export const TEST_PREBUILD_MESSAGES = [
+  {
+    id: 'test_arrival',
+    label: 'Arrival Ping',
+    template: 'In at ${time} (${wifi}) ✅',
+  },
+  {
+    id: 'test_greeting',
+    label: 'Greeting',
+    template: 'Hello ${name}! Connected to Wi-Fi at ${time}.',
+  },
+  {
+    id: 'test_simple',
+    label: 'Simple Ping',
+    template: 'Test arrival ping: connected to ${wifi}',
+  },
+];
+
+export const DEFAULT_RECIPIENT = null;
 
 export const getTodayDateString = () => {
   const d = new Date();

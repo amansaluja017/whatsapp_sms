@@ -9,6 +9,8 @@ import {
   NativeModules,
   KeyboardAvoidingView,
   Platform,
+  AppState,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Network from 'expo-network';
@@ -16,7 +18,6 @@ import * as Network from 'expo-network';
 // Constants & Theme
 import {
   DEFAULT_TARGET_SSID,
-  TARGET_MESSAGE,
   DEFAULT_BOT_URL,
   DEFAULT_RECIPIENT,
   DEFAULT_MESSAGE_TEMPLATE,
@@ -44,11 +45,19 @@ import {
   openBrowserQR,
 } from './src/services/botApi';
 import { readCurrentSSID, scanWifiNetworks } from './src/services/wifi';
+import {
+  checkAndTriggerWifiMessage,
+  startBackgroundMonitoringAsync,
+  stopBackgroundMonitoringAsync,
+  isBackgroundMonitoringActiveAsync,
+  addTriggerListener,
+} from './src/services/backgroundTask';
 
 // Modular Components
 import Header from './src/components/Header';
 import DisconnectedBanner from './src/components/DisconnectedBanner';
 import RouterStatusCard from './src/components/RouterStatusCard';
+import BackgroundMonitoringCard from './src/components/BackgroundMonitoringCard';
 import WifiSelectorCard from './src/components/WifiSelectorCard';
 import RecipientSelectorCard from './src/components/RecipientSelectorCard';
 import MessageTemplateCard from './src/components/MessageTemplateCard';
@@ -56,6 +65,9 @@ import BotSettingsCard from './src/components/BotSettingsCard';
 import DiagnosticsCard from './src/components/DiagnosticsCard';
 
 export default function App() {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 370;
+
   const [networkState, setNetworkState] = useState(null);
   const [ipAddress, setIpAddress] = useState(null);
   const [currentSSID, setCurrentSSID] = useState(null);
@@ -88,6 +100,13 @@ export default function App() {
   const [botStatusInfo, setBotStatusInfo] = useState(null);
   const [lastTriggeredSSID, setLastTriggeredSSID] = useState(null);
   const [lastTriggeredDate, setLastTriggeredDate] = useState(null);
+  const [lastTriggeredTime, setLastTriggeredTime] = useState(null);
+  const [lastTriggerDetails, setLastTriggerDetails] = useState(null);
+
+  // Background Runner state
+  const [isBackgroundActive, setIsBackgroundActive] = useState(false);
+  const [isTogglingBackground, setIsTogglingBackground] = useState(false);
+  const [isTestingTrigger, setIsTestingTrigger] = useState(false);
 
   // Load saved settings and probe bot status on launch
   useEffect(() => {
@@ -97,6 +116,8 @@ export default function App() {
         const stored = await loadStoredSettings();
         if (isMounted && stored) {
           if (stored.lastTriggeredDate) setLastTriggeredDate(stored.lastTriggeredDate);
+          if (stored.lastTriggeredTime) setLastTriggeredTime(stored.lastTriggeredTime);
+          if (stored.lastTriggerDetails) setLastTriggerDetails(stored.lastTriggerDetails);
           if (stored.lastTriggeredSSID) setLastTriggeredSSID(stored.lastTriggeredSSID);
           if (stored.botUrl) setBotUrl(stored.botUrl);
           if (stored.targetSSID) setTargetSSID(stored.targetSSID);
@@ -107,6 +128,18 @@ export default function App() {
           if (stored.targetRecipient) setTargetRecipient(stored.targetRecipient);
           if (stored.cachedChats) setWhatsappChats(stored.cachedChats);
           if (stored.messageTemplate) setMessageTemplate(stored.messageTemplate);
+
+          // Check if background service is running; if enabled in settings but inactive, start it
+          isBackgroundMonitoringActiveAsync().then((isActive) => {
+            if (isMounted) setIsBackgroundActive(isActive);
+            if (!isActive && stored.backgroundMonitoring) {
+              startBackgroundMonitoringAsync(stored.targetSSID || DEFAULT_TARGET_SSID)
+                .then((res) => {
+                  if (isMounted && res.success) setIsBackgroundActive(true);
+                })
+                .catch(() => {});
+            }
+          });
 
           // Probe bot status silently with 3s timeout
           fetchBotStatus(stored.botUrl || DEFAULT_BOT_URL, 3000)
@@ -129,12 +162,10 @@ export default function App() {
 
   // Compute live evaluated message based on template, recipient, and current router
   const activeMessage = useMemo(() => {
-    return (
-      resolveMessageTemplate(messageTemplate, {
-        name: targetRecipient?.name || 'there',
-        wifi: targetSSID || '',
-      }) || TARGET_MESSAGE
-    );
+    return resolveMessageTemplate(messageTemplate, {
+      name: targetRecipient?.name || 'there',
+      wifi: targetSSID || '',
+    });
   }, [messageTemplate, targetRecipient, targetSSID]);
 
   // Helper to open pairing QR page in browser
@@ -266,8 +297,15 @@ export default function App() {
 
     Alert.alert(
       'Target Wi-Fi Selected',
-      `Target router set to:\n"${cleanSSID}"\n\nWhen your phone connects to "${cleanSSID}", the app will auto-send the message.`
+      `Target router set to:\n"${cleanSSID}"\n\nWhen your phone connects to "${cleanSSID}", the app will auto-send the message (once per day).`
     );
+
+    // Update background monitoring notification with new router SSID
+    isBackgroundMonitoringActiveAsync().then((active) => {
+      if (active) {
+        startBackgroundMonitoringAsync(cleanSSID).catch(() => {});
+      }
+    });
   }, []);
 
   // Safe Wi-Fi scanner (manual trigger + single initial scan on startup, never in an auto-loop)
@@ -380,6 +418,23 @@ export default function App() {
   // Send WhatsApp message via local bot server
   const handleSendViaBot = useCallback(
     async (recipient = targetRecipientRef.current, message = activeMessageRef.current) => {
+      if (!recipient || (!recipient.id && !recipient.phone)) {
+        Alert.alert(
+          'Recipient Required',
+          'Please select a WhatsApp contact or enter a phone number in the Recipient card below.'
+        );
+        return;
+      }
+
+      const trimmed = (message || '').trim();
+      if (!trimmed) {
+        Alert.alert(
+          'Message Required',
+          'Please enter your message in the "Custom WhatsApp Message" card below before sending.'
+        );
+        return;
+      }
+
       setIsSendingBot(true);
       const targetName = recipient?.name || 'Selected Target';
 
@@ -412,6 +467,23 @@ export default function App() {
   // Fallback function: send via bot or direct link
   const handleSendMessage = useCallback(
     async (recipient = targetRecipientRef.current, message = activeMessageRef.current) => {
+      if (!recipient || (!recipient.id && !recipient.phone)) {
+        Alert.alert(
+          'Recipient Required',
+          'Please select a WhatsApp contact or enter a phone number in the Recipient card below.'
+        );
+        return;
+      }
+
+      const trimmed = (message || '').trim();
+      if (!trimmed) {
+        Alert.alert(
+          'Message Required',
+          'Please enter your message in the "Custom WhatsApp Message" card below before sending.'
+        );
+        return;
+      }
+
       if (useBot) {
         return handleSendViaBot(recipient, message);
       }
@@ -456,23 +528,14 @@ export default function App() {
       setLocationPermission(permission);
       setCurrentSSID(ssid);
 
-      const todayStr = getTodayDateString();
-
-      // Check if current SSID matches chosen target router
-      if (
-        ssid &&
-        targetSSIDRef.current &&
-        ssid.toLowerCase() === targetSSIDRef.current.toLowerCase()
-      ) {
-        const alreadySentToday = lastTriggeredDateRef.current === todayStr;
-
-        if (!alreadySentToday && autoOpenWhatsAppRef.current) {
-          try {
-            await saveTriggerEvent(todayStr, ssid);
-          } catch (e) {}
-          setLastTriggeredDate(todayStr);
-          setLastTriggeredSSID(ssid);
-          handleSendMessage(targetRecipientRef.current, activeMessageRef.current);
+      // Trigger message if auto-dispatch is enabled and connected to target router
+      if (autoOpenWhatsAppRef.current) {
+        const triggerRes = await checkAndTriggerWifiMessage('network_check');
+        if (triggerRes?.triggered) {
+          setLastTriggeredDate(triggerRes.date);
+          setLastTriggeredTime(triggerRes.time);
+          setLastTriggeredSSID(triggerRes.ssid);
+          setLastTriggerDetails(triggerRes.details);
         }
       }
     } catch (err) {
@@ -480,7 +543,7 @@ export default function App() {
     } finally {
       setRefreshing(false);
     }
-  }, [handleSendMessage]);
+  }, []);
 
   // Run Wi-Fi scan ONCE on initial launch, never in an auto-loop
   useEffect(() => {
@@ -490,28 +553,125 @@ export default function App() {
     }
   }, [handleScanWifi]);
 
-  // Network connectivity listener for router arrival (checks current SSID only, does not scan hardware)
+  // Network connectivity listener and periodic heartbeat watchdog for background runner
   useEffect(() => {
     checkNetworkAndSSID();
 
-    const subscription = Network.addNetworkStateListener(() => {
+    const netSubscription = Network.addNetworkStateListener(() => {
       checkNetworkAndSSID();
     });
 
+    // Listen to background service events to keep UI in sync
+    const removeTriggerListener = addTriggerListener((event) => {
+      if (event?.triggered) {
+        setLastTriggeredDate(event.date);
+        setLastTriggeredTime(event.time);
+        setLastTriggeredSSID(event.ssid);
+        setLastTriggerDetails(event.details);
+      }
+    });
+
+    // Check on app resume from background
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        checkNetworkAndSSID();
+        isBackgroundMonitoringActiveAsync().then(setIsBackgroundActive);
+      }
+    });
+
+    // Periodic heartbeat watchdog (every 15 seconds while alive)
+    const watchdogInterval = setInterval(() => {
+      checkNetworkAndSSID();
+    }, 15000);
+
     return () => {
-      subscription && subscription.remove();
+      netSubscription && netSubscription.remove();
+      removeTriggerListener && removeTriggerListener();
+      appStateSubscription && appStateSubscription.remove();
+      clearInterval(watchdogInterval);
     };
   }, [checkNetworkAndSSID]);
 
+  // Background service toggle handler
+  const handleToggleBackground = useCallback(async (enable) => {
+    setIsTogglingBackground(true);
+    try {
+      if (enable) {
+        const res = await startBackgroundMonitoringAsync(targetSSIDRef.current);
+        if (res.success) {
+          setIsBackgroundActive(true);
+          Alert.alert(
+            'Background Runner Active',
+            `Phone background service is now RUNNING.\n\nThe app will continuously watch for Wi-Fi "${targetSSIDRef.current}" in the background and trigger the message automatically once per day.`
+          );
+        } else {
+          Alert.alert(
+            'Background Permission Needed',
+            `Could not start background monitoring: ${res.error}\n\nPlease ensure Location permission is set to "Allow all the time" in your Android Settings.`
+          );
+        }
+      } else {
+        await stopBackgroundMonitoringAsync();
+        setIsBackgroundActive(false);
+        Alert.alert('Background Runner Stopped', 'Phone background monitoring has been stopped.');
+      }
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setIsTogglingBackground(false);
+    }
+  }, []);
+
+  // Reset 1-per-day limit
   const handleResetDailyTrigger = async () => {
     try {
       await clearDailyTrigger();
       setLastTriggeredDate(null);
+      setLastTriggeredTime(null);
       setLastTriggeredSSID(null);
-      Alert.alert('Reset Complete', 'Daily auto-trigger limit has been cleared for today.');
+      setLastTriggerDetails(null);
+      Alert.alert(
+        'Limit Reset Complete',
+        'Daily trigger lock has been cleared. The app is now ARMED and will trigger again today when your phone connects to the target Wi-Fi.'
+      );
       checkNetworkAndSSID();
     } catch (e) {
       Alert.alert('Error', 'Failed to reset daily trigger status.');
+    }
+  };
+
+  // Test Wi-Fi trigger immediately
+  const handleTestTriggerNow = async () => {
+    setIsTestingTrigger(true);
+    try {
+      const res = await checkAndTriggerWifiMessage('manual_test', true);
+      if (res.triggered) {
+        setLastTriggeredDate(res.date);
+        setLastTriggeredTime(res.time);
+        setLastTriggeredSSID(res.ssid);
+        setLastTriggerDetails(res.details);
+
+        if (res.success) {
+          Alert.alert(
+            'Trigger Test Successful! ✅',
+            `Connected to "${res.ssid}".\n\nDispatched message to ${res.recipient?.name || 'recipient'}:\n"${res.message}"\n\nDaily 1-time limit is now active for today.`
+          );
+        } else {
+          Alert.alert(
+            'Wi-Fi Matched, Bot Offline Notice',
+            `Connected to "${res.ssid}".\n\nMessage generated: "${res.message}"\n\nBot server did not acknowledge message delivery. Please ensure your WhatsApp Bot server is online.`
+          );
+        }
+      } else {
+        Alert.alert(
+          'Trigger Did Not Fire',
+          `Reason: ${res.reason || res.error || 'Check Wi-Fi'}\n\nCurrent Wi-Fi: "${currentSSID || 'None'}"\nTarget Wi-Fi: "${targetSSID}"`
+        );
+      }
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setIsTestingTrigger(false);
     }
   };
 
@@ -557,7 +717,10 @@ export default function App() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.container,
+            { paddingHorizontal: isCompact ? 12 : 16 },
+          ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets={true}
@@ -593,6 +756,22 @@ export default function App() {
             isSendingBot={isSendingBot}
             resolvedMessage={activeMessage}
             onPressAction={() => handleSendMessage(targetRecipient, activeMessage)}
+          />
+
+          {/* Background Phone Runner & Daily Trigger Card */}
+          <BackgroundMonitoringCard
+            targetSSID={targetSSID}
+            isBackgroundActive={isBackgroundActive}
+            isTogglingBackground={isTogglingBackground}
+            onToggleBackground={handleToggleBackground}
+            isTriggeredToday={isTriggeredToday}
+            lastTriggeredDate={lastTriggeredDate}
+            lastTriggeredTime={lastTriggeredTime}
+            lastTriggeredSSID={lastTriggeredSSID}
+            lastTriggerDetails={lastTriggerDetails}
+            onResetTrigger={handleResetDailyTrigger}
+            onTestTriggerNow={handleTestTriggerNow}
+            isTestingTrigger={isTestingTrigger}
           />
 
           {/* Choose Wi-Fi Connection Card */}
@@ -679,6 +858,8 @@ export default function App() {
             currentSSID={currentSSID}
             isTriggeredToday={isTriggeredToday}
             lastTriggeredDate={lastTriggeredDate}
+            lastTriggeredTime={lastTriggeredTime}
+            isBackgroundActive={isBackgroundActive}
             hasNativeModule={hasNativeModule}
             ipAddress={ipAddress}
             locationPermission={locationPermission}
@@ -699,8 +880,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: 16,
+    paddingVertical: 12,
     paddingBottom: 160,
     backgroundColor: COLORS.background,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
 });

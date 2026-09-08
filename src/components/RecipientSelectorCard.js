@@ -30,9 +30,11 @@ export default function RecipientSelectorCard({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.headerTitleRow}>
           <Text style={styles.cardIcon}>👥</Text>
-          <Text style={styles.cardLabel}>WHATSAPP RECIPIENT</Text>
+          <Text style={styles.cardLabel} numberOfLines={1}>
+            WHATSAPP RECIPIENT
+          </Text>
         </View>
         <TouchableOpacity
           style={[styles.outlineBadge, isLoadingChats && { opacity: 0.5 }]}
@@ -53,21 +55,37 @@ export default function RecipientSelectorCard({
 
       {/* Active Target Banner */}
       <View style={styles.selectedRecipientBanner}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.selectedRecipientLabel}>CURRENT TARGET:</Text>
-          <Text style={styles.selectedRecipientName} numberOfLines={1}>
-            {targetRecipient.isGroup ? '👥 ' : '👤 '}
-            {targetRecipient.name}
-          </Text>
-          <Text style={styles.selectedRecipientSubtext}>
-            {targetRecipient.isGroup ? 'Group Conversation' : (targetRecipient.phone || targetRecipient.id)}
-          </Text>
-        </View>
-        <View style={styles.solidPill}>
-          <Text style={styles.solidPillText}>
-            {targetRecipient.isGroup ? 'GROUP' : 'CONTACT'}
-          </Text>
-        </View>
+        {targetRecipient ? (
+          <>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.selectedRecipientLabel}>CURRENT TARGET:</Text>
+              <Text style={styles.selectedRecipientName} numberOfLines={1}>
+                {targetRecipient.isGroup ? '👥 ' : '👤 '}
+                {targetRecipient.name}
+              </Text>
+              <Text style={styles.selectedRecipientSubtext} numberOfLines={1}>
+                {targetRecipient.isGroup
+                  ? 'Group Conversation'
+                  : targetRecipient.phone || targetRecipient.id}
+              </Text>
+            </View>
+            <View style={styles.solidPill}>
+              <Text style={styles.solidPillText}>
+                {targetRecipient.isGroup ? 'GROUP' : 'CONTACT'}
+              </Text>
+            </View>
+          </>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <Text style={styles.selectedRecipientLabel}>CURRENT TARGET:</Text>
+            <Text style={[styles.selectedRecipientName, { color: COLORS.textMuted }]}>
+              👤 None Selected
+            </Text>
+            <Text style={styles.selectedRecipientSubtext}>
+              Select a WhatsApp contact/group below, or type a custom phone number.
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Filter Tabs: All, Contacts, Groups */}
@@ -76,7 +94,10 @@ export default function RecipientSelectorCard({
           style={[styles.tabButton, chatFilterType === 'all' && styles.tabButtonActive]}
           onPress={() => onSelectFilter('all')}
         >
-          <Text style={[styles.tabButtonText, chatFilterType === 'all' && styles.tabButtonTextActive]}>
+          <Text
+            style={[styles.tabButtonText, chatFilterType === 'all' && styles.tabButtonTextActive]}
+            numberOfLines={1}
+          >
             All ({whatsappChats.length})
           </Text>
         </TouchableOpacity>
@@ -85,8 +106,11 @@ export default function RecipientSelectorCard({
           style={[styles.tabButton, chatFilterType === 'contacts' && styles.tabButtonActive]}
           onPress={() => onSelectFilter('contacts')}
         >
-          <Text style={[styles.tabButtonText, chatFilterType === 'contacts' && styles.tabButtonTextActive]}>
-            👤 Contacts ({whatsappChats.filter((c) => !c.isGroup).length})
+          <Text
+            style={[styles.tabButtonText, chatFilterType === 'contacts' && styles.tabButtonTextActive]}
+            numberOfLines={1}
+          >
+            Contacts ({whatsappChats.filter((c) => !c.isGroup).length})
           </Text>
         </TouchableOpacity>
 
@@ -94,8 +118,11 @@ export default function RecipientSelectorCard({
           style={[styles.tabButton, chatFilterType === 'groups' && styles.tabButtonActive]}
           onPress={() => onSelectFilter('groups')}
         >
-          <Text style={[styles.tabButtonText, chatFilterType === 'groups' && styles.tabButtonTextActive]}>
-            👥 Groups ({whatsappChats.filter((c) => c.isGroup).length})
+          <Text
+            style={[styles.tabButtonText, chatFilterType === 'groups' && styles.tabButtonTextActive]}
+            numberOfLines={1}
+          >
+            Groups ({whatsappChats.filter((c) => c.isGroup).length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -155,7 +182,7 @@ export default function RecipientSelectorCard({
             showsVerticalScrollIndicator={true}
           >
             {filteredChats.slice(0, 60).map((chat) => {
-              const isSelected = targetRecipient.id === chat.id;
+              const isSelected = targetRecipient?.id === chat.id;
               return (
                 <TouchableOpacity
                   key={chat.id}
@@ -166,21 +193,22 @@ export default function RecipientSelectorCard({
                   onPress={() => onSelectRecipient(chat)}
                   activeOpacity={0.7}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 8 }}>
                     <Text style={styles.itemIcon}>
                       {isSelected ? '✓' : chat.isGroup ? '👥' : '👤'}
                     </Text>
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
                       <Text
                         style={[
                           styles.chatItemName,
                           isSelected && { color: COLORS.white, fontWeight: '700' },
                         ]}
                         numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
                         {chat.name}
                       </Text>
-                      <Text style={styles.chatItemSubtext} numberOfLines={1}>
+                      <Text style={styles.chatItemSubtext} numberOfLines={1} ellipsizeMode="tail">
                         {chat.isGroup ? 'Group Conversation' : (chat.phone || 'Contact')}
                       </Text>
                     </View>
@@ -211,7 +239,7 @@ export default function RecipientSelectorCard({
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
         <TextInput
           style={[styles.textInput, { flex: 1 }]}
-          placeholder="e.g. +919306234357"
+          placeholder="e.g. +1234567890"
           placeholderTextColor="#52525B"
           value={customPhoneInput}
           onChangeText={onChangeCustomPhone}
@@ -246,16 +274,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+    gap: 8,
+  },
+  headerTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   cardIcon: {
     fontSize: 15,
     marginRight: 6,
+    flexShrink: 0,
   },
   cardLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
     letterSpacing: 1,
+    flex: 1,
   },
   helpText: {
     fontSize: 12,

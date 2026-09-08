@@ -43,7 +43,7 @@ Response:
 {
   "status": "connected",
   "connected": true,
-  "user": "+919306234357",
+  "user": "+1234567890",
   "port": 3001,
   "timestamp": "2026-09-06T07:20:00.000Z"
 }
@@ -55,8 +55,8 @@ Send a WhatsApp text message to any phone number.
 curl -X POST http://localhost:3001/send-message \
   -H "Content-Type: application/json" \
   -d '{
-    "phone": "+919306234357",
-    "message": "hii"
+    "phone": "+1234567890",
+    "message": "Hello from automation!"
   }'
 ```
 Response:
@@ -64,8 +64,8 @@ Response:
 {
   "success": true,
   "messageId": "BAE5F92E38B23789",
-  "to": "919306234357",
-  "message": "hii",
+  "to": "1234567890@c.us",
+  "message": "Hello from automation!",
   "timestamp": "2026-09-06T07:20:05.000Z"
 }
 ```

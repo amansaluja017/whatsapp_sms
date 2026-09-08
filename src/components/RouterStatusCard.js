@@ -1,8 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { COLORS } from '../constants/theme';
-import { TARGET_MESSAGE } from '../constants/config';
-
 export default function RouterStatusCard({
   isMatched,
   targetSSID,
@@ -13,8 +11,10 @@ export default function RouterStatusCard({
   resolvedMessage,
   onPressAction,
 }) {
-  const displayMsg = resolvedMessage || TARGET_MESSAGE;
-  const truncatedMsg = displayMsg.length > 25 ? displayMsg.slice(0, 22) + '...' : displayMsg;
+  const displayMsg = resolvedMessage?.trim() || '';
+  const truncatedMsg = displayMsg.length > 22 ? displayMsg.slice(0, 20) + '...' : displayMsg;
+  const hasRecipient = !!(targetRecipient && (targetRecipient.id || targetRecipient.phone || targetRecipient.name));
+  const recipientName = hasRecipient ? targetRecipient.name : 'Recipient';
 
   return (
     <View
@@ -24,19 +24,26 @@ export default function RouterStatusCard({
       ]}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.cardLabel}>ROUTER STATUS</Text>
+        <View style={styles.headerTitleBlock}>
+          <Text style={styles.cardLabel}>ROUTER STATUS</Text>
+        </View>
         <View style={[styles.badge, isMatched ? styles.badgeActive : styles.badgeMuted]}>
-          <Text style={[styles.badgeText, { color: isMatched ? COLORS.white : COLORS.textSecondary }]}>
+          <Text
+            style={[
+              styles.badgeText,
+              { color: isMatched ? COLORS.white : COLORS.textSecondary },
+            ]}
+          >
             {isMatched ? '● MATCHED' : '○ SEARCHING'}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.targetSSIDTitle}>
+      <Text style={styles.targetSSIDTitle} numberOfLines={1} ellipsizeMode="tail">
         {isMatched ? `Connected to ${targetSSID}` : `Target: ${targetSSID}`}
       </Text>
 
-      <Text style={styles.statusSubtext}>
+      <Text style={styles.statusSubtext} numberOfLines={1} ellipsizeMode="tail">
         Current SSID: {currentSSID ? `"${currentSSID}"` : 'Unknown / Simulating'}
       </Text>
 
@@ -51,12 +58,24 @@ export default function RouterStatusCard({
         disabled={isSendingBot}
       >
         {isSendingBot ? (
-          <ActivityIndicator color={isMatched ? COLORS.black : COLORS.white} />
+          <ActivityIndicator color={isMatched ? COLORS.black : COLORS.white} size="small" />
         ) : (
-          <Text style={[styles.actionButtonText, { color: isMatched ? COLORS.black : COLORS.white }]}>
-            {useBot
-              ? `⚡ Send "${truncatedMsg}" to ${targetRecipient.name}`
-              : `📲 Open WhatsApp for ${targetRecipient.name}`}
+          <Text
+            style={[
+              styles.actionButtonText,
+              { color: isMatched ? COLORS.black : COLORS.white },
+            ]}
+            numberOfLines={2}
+          >
+            {!hasRecipient
+              ? `👤 Select a Recipient below to start`
+              : useBot
+              ? displayMsg
+                ? `⚡ Send "${truncatedMsg}" to ${recipientName}`
+                : `⚡ Type message below to send to ${recipientName}`
+              : displayMsg
+              ? `📲 Open WhatsApp for ${recipientName}`
+              : `📲 Type message below for ${recipientName}`}
           </Text>
         )}
       </TouchableOpacity>
@@ -84,7 +103,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    gap: 8,
+  },
+  headerTitleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   cardLabel: {
     fontSize: 11,
@@ -93,13 +117,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   badge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
+    flexShrink: 0,
   },
   badgeActive: {
-    backgroundColor: COLORS.surfaceHighlight,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderColor: COLORS.white,
   },
   badgeMuted: {
@@ -107,25 +132,27 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderDefault,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   targetSSIDTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: COLORS.white,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
     marginBottom: 4,
   },
   statusSubtext: {
     fontSize: 13,
     color: COLORS.textMuted,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   actionButton: {
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -138,7 +165,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderStrong,
   },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
+

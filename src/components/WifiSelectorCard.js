@@ -58,11 +58,13 @@ export default function WifiSelectorCard({
     <View style={styles.card}>
       {/* Header */}
       <View style={styles.cardHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.headerLeftContainer}>
           <Text style={styles.cardIcon}>📶</Text>
-          <View>
-            <Text style={styles.cardLabel}>NEARBY WI-FI NETWORKS</Text>
-            <Text style={styles.cardSublabel}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.cardLabel} numberOfLines={1}>
+              NEARBY WI-FI NETWORKS
+            </Text>
+            <Text style={styles.cardSublabel} numberOfLines={1} ellipsizeMode="tail">
               {isScanningWifi
                 ? 'Scanning nearby frequencies...'
                 : lastScannedAt
@@ -219,14 +221,15 @@ export default function WifiSelectorCard({
                 </View>
 
                 {/* Network Info */}
-                <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 1 }}>
                     <Text
                       style={[
                         styles.networkSSIDText,
                         isCurrentTarget && { color: COLORS.white, fontWeight: '700' },
                       ]}
                       numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
                       {net.ssid}
                     </Text>
@@ -334,10 +337,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    gap: 8,
+  },
+  headerLeftContainer: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTextContainer: {
+    flex: 1,
+    minWidth: 0,
   },
   cardIcon: {
-    fontSize: 20,
-    marginRight: 10,
+    fontSize: 18,
+    marginRight: 8,
+    flexShrink: 0,
   },
   cardLabel: {
     fontSize: 12,
@@ -354,9 +369,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
     borderColor: COLORS.borderStrong,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
+    flexShrink: 0,
   },
   outlineBadgeText: {
     color: COLORS.white,
@@ -538,7 +554,8 @@ const styles = StyleSheet.create({
     color: '#E4E4E7',
     fontSize: 14,
     fontWeight: '600',
-    maxWidth: 180,
+    flexShrink: 1,
+    minWidth: 0,
   },
   freqBadge: {
     backgroundColor: '#27272A',

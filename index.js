@@ -1,5 +1,8 @@
 import { registerRootComponent } from 'expo';
 
+// Initialize global TaskManager definitions for background Wi-Fi and fetch tasks
+import './src/services/backgroundTask';
+
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

@@ -8,7 +8,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
-import { resolveMessageTemplate, DEFAULT_MESSAGE_TEMPLATE } from '../constants/config';
+import {
+  resolveMessageTemplate,
+  TEST_PREBUILD_MESSAGES,
+} from '../constants/config';
 
 const VARIABLE_TAGS = [
   { label: '${name}', desc: 'Recipient Name' },
@@ -27,11 +30,15 @@ export default function MessageTemplateCard({
   targetSSID,
   onChangeTemplate,
 }) {
+  const hasMessage = !!(messageTemplate && messageTemplate.trim());
+
   // Compute live evaluated preview of the message
-  const previewText = resolveMessageTemplate(messageTemplate, {
-    name: targetRecipient?.name || 'Aman',
-    wifi: targetSSID || '',
-  });
+  const previewText = hasMessage
+    ? resolveMessageTemplate(messageTemplate, {
+        name: targetRecipient?.name || 'there',
+        wifi: targetSSID || '',
+      })
+    : '';
 
   const handleInsertTag = (tag) => {
     const current = messageTemplate || '';
@@ -44,32 +51,69 @@ export default function MessageTemplateCard({
     onChangeTemplate(current + (current.endsWith(' ') || current.length === 0 ? '' : ' ') + emoji + ' ');
   };
 
-  const handleResetDefault = () => {
-    onChangeTemplate(DEFAULT_MESSAGE_TEMPLATE);
+  const handleClear = () => {
+    onChangeTemplate('');
+  };
+
+  const handleLoadTestTemplate = (tpl) => {
+    onChangeTemplate(tpl);
   };
 
   return (
     <View style={styles.card}>
+      {/* Header */}
       <View style={styles.cardHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.headerTitleRow}>
           <Text style={styles.cardIcon}>✏️</Text>
-          <Text style={styles.cardLabel}>WHATSAPP MESSAGE TEMPLATE</Text>
+          <Text style={styles.cardLabel} numberOfLines={1}>
+            CUSTOM WHATSAPP MESSAGE
+          </Text>
         </View>
-        <TouchableOpacity
-          style={styles.resetBadge}
-          onPress={handleResetDefault}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.resetBadgeText}>Reset</Text>
-        </TouchableOpacity>
+        {hasMessage && (
+          <TouchableOpacity
+            style={styles.clearBadge}
+            onPress={handleClear}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.clearBadgeText}>Clear</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={styles.helpText}>
-        Write the message you want to send. Tap any variable tag or emoji below to insert dynamic values.
+        Type your custom message below. The app will automatically evaluate and send this message when your phone connects to {targetSSID || 'your Wi-Fi'}.
       </Text>
 
+      {/* Message Text Input (Takes message from the user) */}
+      <View style={styles.inputHeaderRow}>
+        <Text style={styles.sectionLabel}>Your Message:</Text>
+        <Text style={styles.charCount}>{messageTemplate ? `${messageTemplate.length} chars` : 'Required'}</Text>
+      </View>
+
+      <TextInput
+        style={[
+          styles.messageInput,
+          !hasMessage && styles.messageInputEmpty,
+        ]}
+        multiline
+        numberOfLines={3}
+        value={messageTemplate}
+        onChangeText={onChangeTemplate}
+        placeholder="Type your message here (e.g. In at office ${time}, will call you soon)..."
+        placeholderTextColor="#52525B"
+        textAlignVertical="top"
+      />
+
+      {!hasMessage && (
+        <View style={styles.emptyWarningBox}>
+          <Text style={styles.emptyWarningText}>
+            ⚠️ Enter your message above, or tap a Test Template below to test.
+          </Text>
+        </View>
+      )}
+
       {/* Dynamic Variable Chips */}
-      <Text style={styles.sectionLabel}>Insert Dynamic Tags:</Text>
+      <Text style={[styles.sectionLabel, { marginTop: 10 }]}>Insert Dynamic Tags:</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -107,18 +151,30 @@ export default function MessageTemplateCard({
         ))}
       </ScrollView>
 
-      {/* Message Text Input */}
-      <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Message Content:</Text>
-      <TextInput
-        style={styles.messageInput}
-        multiline
-        numberOfLines={3}
-        value={messageTemplate}
-        onChangeText={onChangeTemplate}
-        placeholder="e.g. Aman in time ${time}"
-        placeholderTextColor="#52525B"
-        textAlignVertical="top"
-      />
+      {/* Prebuilt Messages for Testing Only */}
+      <View style={styles.testPresetsContainer}>
+        <View style={styles.testPresetsHeader}>
+          <Text style={styles.testPresetsTitle}>🧪 TEST TEMPLATES (FOR TESTING ONLY)</Text>
+        </View>
+        <Text style={styles.testPresetsDesc}>
+          Tap any prebuilt template below to quickly test Wi-Fi dispatch:
+        </Text>
+        <View style={styles.testPresetsList}>
+          {TEST_PREBUILD_MESSAGES.map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={styles.testPresetItem}
+              onPress={() => handleLoadTestTemplate(t.template)}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.testPresetLabel}>{t.label}</Text>
+              <Text style={styles.testPresetTemplate} numberOfLines={1}>
+                "{t.template}"
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* Live Preview Box */}
       <View style={styles.previewContainer}>
@@ -126,9 +182,11 @@ export default function MessageTemplateCard({
           <Text style={styles.previewLabel}>LIVE PREVIEW (WHAT WILL BE SENT):</Text>
         </View>
         <View style={styles.previewBubble}>
-          <Text style={styles.previewText}>{previewText || '(Empty message)'}</Text>
+          <Text style={[styles.previewText, !hasMessage && { color: COLORS.textMuted, fontStyle: 'italic' }]}>
+            {previewText || '(Empty — please type your message above)'}
+          </Text>
           <Text style={styles.previewMeta}>
-            To: {targetRecipient?.name} • Router: {targetSSID}
+            To: {targetRecipient?.name || 'None selected'} • Router: {targetSSID || 'None'}
           </Text>
         </View>
       </View>
@@ -150,26 +208,36 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+    gap: 8,
+  },
+  headerTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   cardIcon: {
     fontSize: 15,
     marginRight: 6,
+    flexShrink: 0,
   },
   cardLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+    flex: 1,
   },
-  resetBadge: {
+  clearBadge: {
     backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
     borderColor: COLORS.borderDefault,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 6,
+    flexShrink: 0,
   },
-  resetBadgeText: {
+  clearBadgeText: {
     color: COLORS.textSecondary,
     fontSize: 10,
     fontWeight: '700',
@@ -185,12 +253,50 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: COLORS.white,
   },
+  inputHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
-    marginBottom: 6,
     letterSpacing: 0.5,
+  },
+  charCount: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  messageInput: {
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.borderDefault,
+    padding: 12,
+    color: COLORS.white,
+    fontSize: 14,
+    minHeight: 75,
+    lineHeight: 20,
+  },
+  messageInputEmpty: {
+    borderColor: '#3F3F46',
+  },
+  emptyWarningBox: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  emptyWarningText: {
+    fontSize: 11,
+    color: '#F59E0B',
+    fontWeight: '600',
   },
   chipsScroll: {
     flexDirection: 'row',
@@ -234,16 +340,50 @@ const styles = StyleSheet.create({
   emojiText: {
     fontSize: 18,
   },
-  messageInput: {
+  testPresetsContainer: {
+    marginTop: 12,
     backgroundColor: COLORS.surfaceElevated,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.borderDefault,
-    padding: 12,
+    borderColor: '#2A2A2A',
+    padding: 10,
+  },
+  testPresetsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  testPresetsTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#A1A1AA',
+    letterSpacing: 0.8,
+  },
+  testPresetsDesc: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginBottom: 8,
+  },
+  testPresetsList: {
+    gap: 6,
+  },
+  testPresetItem: {
+    backgroundColor: '#181818',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2E2E2E',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  testPresetLabel: {
     color: COLORS.white,
-    fontSize: 14,
-    minHeight: 75,
-    lineHeight: 20,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  testPresetTemplate: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
   },
   previewContainer: {
     marginTop: 12,
@@ -281,3 +421,4 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 });
+

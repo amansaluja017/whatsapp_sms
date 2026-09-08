@@ -24,7 +24,7 @@ async function sendMessageHandler(req, res) {
     const cleanPhone = phone.replace(/[^\d]/g, '');
     if (cleanPhone.length < 7) {
       return res.status(400).json({
-        error: `Invalid phone number format: "${phone}". Must include country code (e.g. +919306234357).`,
+        error: `Invalid phone number format: "${phone}". Must include country code (e.g. +1234567890 or +919876543210).`,
       });
     }
     targetChatId = `${cleanPhone}@c.us`;
