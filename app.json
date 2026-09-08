@@ -49,7 +49,8 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "react-native-wifi-reborn"
+      "react-native-wifi-reborn",
+      "expo-background-task"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

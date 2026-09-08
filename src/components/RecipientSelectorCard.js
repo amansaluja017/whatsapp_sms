@@ -26,6 +26,7 @@ export default function RecipientSelectorCard({
   onSelectRecipient,
   onChangeCustomPhone,
   onSubmitCustomPhone,
+  onRemoveRecipient,
 }) {
   return (
     <View style={styles.card}>
@@ -69,10 +70,21 @@ export default function RecipientSelectorCard({
                   : targetRecipient?.phone || targetRecipient?.id || ''}
               </Text>
             </View>
-            <View style={styles.solidPill}>
-              <Text style={styles.solidPillText}>
-                {targetRecipient.isGroup ? 'GROUP' : 'CONTACT'}
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {onRemoveRecipient && (
+                <TouchableOpacity
+                  style={styles.removeTargetButton}
+                  onPress={onRemoveRecipient}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.removeTargetButtonText}>✕ Remove</Text>
+                </TouchableOpacity>
+              )}
+              <View style={styles.solidPill}>
+                <Text style={styles.solidPillText}>
+                  {targetRecipient.isGroup ? 'GROUP' : 'CONTACT'}
+                </Text>
+              </View>
             </View>
           </>
         ) : (
@@ -496,5 +508,20 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: COLORS.borderSubtle,
     marginVertical: 12,
+  },
+  removeTargetButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeTargetButtonText: {
+    color: '#F87171',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

@@ -19,6 +19,7 @@ import * as Network from 'expo-network';
 import {
   DEFAULT_TARGET_SSID,
   DEFAULT_BOT_URL,
+  DEFAULT_USER_ID,
   DEFAULT_RECIPIENT,
   DEFAULT_MESSAGE_TEMPLATE,
   getTodayDateString,
@@ -34,9 +35,13 @@ import {
   saveTargetRecipient,
   saveCachedChats,
   saveBotUrl,
+  saveUserId,
   saveMessageTemplate,
   saveTriggerEvent,
   clearDailyTrigger,
+  saveAutoOpenWhatsApp,
+  saveDisclaimerAccepted,
+  isDisclaimerAccepted,
 } from './src/services/storage';
 import {
   fetchBotStatus,
@@ -63,6 +68,8 @@ import RecipientSelectorCard from './src/components/RecipientSelectorCard';
 import MessageTemplateCard from './src/components/MessageTemplateCard';
 import BotSettingsCard from './src/components/BotSettingsCard';
 import DiagnosticsCard from './src/components/DiagnosticsCard';
+import AlertBox from './src/components/AlertBox';
+import DisclaimerModal from './src/components/DisclaimerModal';
 
 export default function App() {
   const { width } = useWindowDimensions();
@@ -97,6 +104,7 @@ export default function App() {
   const [isSendingBot, setIsSendingBot] = useState(false);
   const [isCheckingBot, setIsCheckingBot] = useState(false);
   const [botUrl, setBotUrl] = useState(DEFAULT_BOT_URL);
+  const [userId, setUserId] = useState(DEFAULT_USER_ID);
   const [botStatusInfo, setBotStatusInfo] = useState(null);
   const [lastTriggeredSSID, setLastTriggeredSSID] = useState(null);
   const [lastTriggeredDate, setLastTriggeredDate] = useState(null);
@@ -108,18 +116,31 @@ export default function App() {
   const [isTogglingBackground, setIsTogglingBackground] = useState(false);
   const [isTestingTrigger, setIsTestingTrigger] = useState(false);
 
+  // Safety Disclaimer state
+  const [isDisclaimerModalVisible, setIsDisclaimerModalVisible] = useState(false);
+  const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState(true); // default true until checked
+
   // Load saved settings and probe bot status on launch
   useEffect(() => {
     let isMounted = true;
     const initApp = async () => {
       try {
         const stored = await loadStoredSettings();
+        const accepted = await isDisclaimerAccepted();
+        if (isMounted) {
+          setHasAcceptedDisclaimer(accepted);
+          if (!accepted) {
+            setIsDisclaimerModalVisible(true);
+          }
+        }
+
         if (isMounted && stored) {
           if (stored.lastTriggeredDate) setLastTriggeredDate(stored.lastTriggeredDate);
           if (stored.lastTriggeredTime) setLastTriggeredTime(stored.lastTriggeredTime);
           if (stored.lastTriggerDetails) setLastTriggerDetails(stored.lastTriggerDetails);
           if (stored.lastTriggeredSSID) setLastTriggeredSSID(stored.lastTriggeredSSID);
           if (stored.botUrl) setBotUrl(stored.botUrl);
+          if (stored.userId) setUserId(stored.userId);
           if (stored.targetSSID) setTargetSSID(stored.targetSSID);
           if (stored.savedNetworks) {
             setSavedNetworks(stored.savedNetworks);
@@ -128,6 +149,7 @@ export default function App() {
           if (stored.targetRecipient) setTargetRecipient(stored.targetRecipient);
           if (stored.cachedChats) setWhatsappChats(stored.cachedChats);
           if (stored.messageTemplate) setMessageTemplate(stored.messageTemplate);
+          if (stored.autoOpenWhatsApp !== undefined) setAutoOpenWhatsApp(stored.autoOpenWhatsApp);
 
           // Check if background service is running; if enabled in settings but inactive, start it
           isBackgroundMonitoringActiveAsync().then((isActive) => {
@@ -142,7 +164,7 @@ export default function App() {
           });
 
           // Probe bot status silently with 3s timeout
-          fetchBotStatus(stored.botUrl || DEFAULT_BOT_URL, 3000)
+          fetchBotStatus(stored.botUrl || DEFAULT_BOT_URL, 3000, stored.userId || DEFAULT_USER_ID)
             .then(({ data }) => {
               if (isMounted) setBotStatusInfo(data);
             })
@@ -170,31 +192,31 @@ export default function App() {
 
   // Helper to open pairing QR page in browser
   const handleOpenQR = useCallback(() => {
-    openBrowserQR(botUrl).catch(() => {
+    openBrowserQR(botUrl, userId).catch(() => {
       Alert.alert('Notice', 'Could not open browser. Please ensure your Bot Server URL is correct.');
     });
-  }, [botUrl]);
+  }, [botUrl, userId]);
 
   // Check WhatsApp Bot status
   const handleCheckBotStatus = useCallback(
     async (silent = false) => {
       setIsCheckingBot(true);
       try {
-        const { data } = await fetchBotStatus(botUrl);
+        const { data } = await fetchBotStatus(botUrl, 5000, userId);
         setBotStatusInfo(data);
 
         if (data.status === 'connected') {
           if (!silent) {
             Alert.alert(
               'WhatsApp Bot Online',
-              `Bot is connected and ready!\n\nLogged in as: ${data.user || 'Unknown'}\nServer: ${botUrl}`
+              `Bot is connected and ready!\n\nUser ID: ${userId || 'default'}\nLogged in as: ${data.user || 'Unknown'}\nServer: ${botUrl}`
             );
           }
         } else if (data.status === 'qr_ready') {
           if (!silent) {
             Alert.alert(
               'Bot Pairing Needed',
-              'The WhatsApp Bot is running, but you need to scan the QR code to link your account.',
+              `The WhatsApp Bot is running for user "${userId || 'default'}", but you need to scan the QR code to link your account.`,
               [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Open QR in Browser', onPress: handleOpenQR },
@@ -202,14 +224,14 @@ export default function App() {
             );
           }
         } else if (!silent) {
-          Alert.alert('Bot Status', `Current status: ${data.status}`);
+          Alert.alert('Bot Status', `Current status for "${userId || 'default'}": ${data.status}`);
         }
       } catch (err) {
         setBotStatusInfo({ status: 'offline', error: err.message });
         if (!silent) {
           Alert.alert(
             'WhatsApp Bot Unreachable',
-            `Could not connect to bot server.\n\nError: ${err.message}\n\nPlease ensure your PC and phone are on the same Wi-Fi.`,
+            `Could not connect to bot server.\n\nError: ${err.message}\n\nPlease ensure your PC/Server is accessible.`,
             [
               { text: 'Cancel', style: 'cancel' },
               { text: 'Open QR in Browser', onPress: handleOpenQR },
@@ -220,7 +242,7 @@ export default function App() {
         setIsCheckingBot(false);
       }
     },
-    [botUrl, handleOpenQR]
+    [botUrl, userId, handleOpenQR]
   );
 
   const [lastScannedAt, setLastScannedAt] = useState(null);
@@ -243,6 +265,9 @@ export default function App() {
 
   const autoOpenWhatsAppRef = useRef(autoOpenWhatsApp);
   autoOpenWhatsAppRef.current = autoOpenWhatsApp;
+
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
 
   const lastTriggeredDateRef = useRef(lastTriggeredDate);
   lastTriggeredDateRef.current = lastTriggeredDate;
@@ -272,6 +297,26 @@ export default function App() {
       saveBotUrl(val);
     }, 400);
   }, []);
+
+  const saveUserIdTimeoutRef = useRef(null);
+  const handleChangeUserId = useCallback(
+    (val) => {
+      const sanitized = (val || '').trim();
+      setUserId(val);
+      if (saveUserIdTimeoutRef.current) {
+        clearTimeout(saveUserIdTimeoutRef.current);
+      }
+      saveUserIdTimeoutRef.current = setTimeout(() => {
+        saveUserId(sanitized);
+        if (sanitized) {
+          fetchBotStatus(botUrl, 3000, sanitized)
+            .then(({ data }) => setBotStatusInfo(data))
+            .catch(() => setBotStatusInfo({ status: 'offline' }));
+        }
+      }, 400);
+    },
+    [botUrl]
+  );
 
   // Select a new target Wi-Fi connection
   const handleSelectSSID = useCallback(async (newSSID) => {
@@ -386,13 +431,13 @@ export default function App() {
   const handleFetchChats = useCallback(async () => {
     setIsLoadingChats(true);
     try {
-      const { ok, data } = await fetchWhatsAppChatsApi(botUrl);
+      const { ok, data } = await fetchWhatsAppChatsApi(botUrl, 12000, userId);
       if (ok && Array.isArray(data?.chats)) {
         setWhatsappChats(data.chats);
         await saveCachedChats(data.chats);
         Alert.alert(
           'Chats Loaded',
-          `Loaded ${data.chats.length} contacts & groups from your WhatsApp.\n\nTap any contact or group below to select it.`
+          `Loaded ${data.chats.length} contacts & groups for session "${userId || 'default'}".\n\nTap any contact or group below to select it.`
         );
       } else {
         const errMsg = data?.error || 'Unable to load chats';
@@ -413,7 +458,7 @@ export default function App() {
     } finally {
       setIsLoadingChats(false);
     }
-  }, [botUrl, handleOpenQR]);
+  }, [botUrl, userId, handleOpenQR]);
 
   // Send WhatsApp message via local bot server
   const handleSendViaBot = useCallback(
@@ -439,11 +484,11 @@ export default function App() {
       const targetName = recipient?.name || 'Selected Target';
 
       try {
-        const { ok, data, raw } = await sendWhatsAppMessageApi(botUrl, recipient, message);
+        const { ok, data, raw } = await sendWhatsAppMessageApi(botUrl, recipient, message, 15000, userId);
         if (ok && data?.success) {
           Alert.alert(
             'Message Delivered',
-            `Message delivered successfully!\n\nTarget: ${targetName} (${recipient?.isGroup ? 'Group' : 'Contact'})\nMessage: "${message}"\nID: ${data.messageId}`
+            `Message delivered successfully!\n\nTarget: ${targetName} (${recipient?.isGroup ? 'Group' : 'Contact'})\nSession: ${userId || 'default'}\nMessage: "${message}"\nID: ${data.messageId}`
           );
         } else {
           const errMsg = data?.error || raw || 'Failed to dispatch message';
@@ -461,7 +506,7 @@ export default function App() {
         setIsSendingBot(false);
       }
     },
-    [botUrl, handleOpenQR]
+    [botUrl, userId, handleOpenQR]
   );
 
   // Fallback function: send via bot or direct link
@@ -621,6 +666,106 @@ export default function App() {
       setIsTogglingBackground(false);
     }
   }, []);
+  // Toggle auto-open/send
+  const handleToggleAutoOpen = useCallback(async (val) => {
+    setAutoOpenWhatsApp(val);
+    await saveAutoOpenWhatsApp(val);
+  }, []);
+
+  // Remove selected recipient
+  const handleRemoveRecipient = useCallback(async () => {
+    Alert.alert(
+      'Remove Recipient',
+      'Are you sure you want to clear the active WhatsApp target? Automated messages will not be sent until a new recipient is chosen.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove Target',
+          style: 'destructive',
+          onPress: async () => {
+            setTargetRecipient(null);
+            await saveTargetRecipient(null);
+          },
+        },
+      ]
+    );
+  }, []);
+
+  // Remove target Wi-Fi router
+  const handleClearTargetSSID = useCallback(async () => {
+    Alert.alert(
+      'Remove Trigger Router',
+      'Are you sure you want to remove the target Wi-Fi? The app will not trigger any messages on Wi-Fi connection until a router is set.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove Router',
+          style: 'destructive',
+          onPress: async () => {
+            setTargetSSID('');
+            await saveTargetSSID('');
+          },
+        },
+      ]
+    );
+  }, []);
+
+  // Master remove / disable all automation
+  const handleRemoveAutomation = useCallback(async () => {
+    const isCurrentlyDisabled = !isBackgroundActive && !autoOpenWhatsApp;
+
+    if (isCurrentlyDisabled) {
+      // Re-enable automation
+      setIsTogglingBackground(true);
+      try {
+        setAutoOpenWhatsApp(true);
+        await saveAutoOpenWhatsApp(true);
+        const res = await startBackgroundMonitoringAsync(targetSSIDRef.current || DEFAULT_TARGET_SSID);
+        if (res.success) {
+          setIsBackgroundActive(true);
+        }
+        Alert.alert(
+          'Automation Re-armed ✅',
+          'Wi-Fi auto-dispatch and background phone monitoring have been turned back on.'
+        );
+      } catch (e) {
+        Alert.alert('Notice', e.message);
+      } finally {
+        setIsTogglingBackground(false);
+      }
+      return;
+    }
+
+    // Confirm removal / disabling
+    Alert.alert(
+      'Remove Automation?',
+      'This will stop background Wi-Fi monitoring and turn off automated message dispatching upon Wi-Fi connection.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Turn Off Automation',
+          style: 'destructive',
+          onPress: async () => {
+            setIsTogglingBackground(true);
+            try {
+              await stopBackgroundMonitoringAsync();
+              setIsBackgroundActive(false);
+              setAutoOpenWhatsApp(false);
+              await saveAutoOpenWhatsApp(false);
+              Alert.alert(
+                'Automation Removed / Disabled 🛑',
+                'Background phone monitoring has been stopped and automated Wi-Fi triggers have been paused.'
+              );
+            } catch (e) {
+              console.error('Error removing automation:', e);
+            } finally {
+              setIsTogglingBackground(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [isBackgroundActive, autoOpenWhatsApp]);
 
   // Reset 1-per-day limit
   const handleResetDailyTrigger = async () => {
@@ -737,6 +882,19 @@ export default function App() {
           {/* App Title Header */}
           <Header isBotConnected={isBotConnected} />
 
+          {/* Unofficial WhatsApp Safety Advisory & Ban Risk Alert Box */}
+          <AlertBox
+            type="warning"
+            title="UNOFFICIAL APP • RISK OF BAN"
+            message="This application connects via unofficial WhatsApp Web protocols. WhatsApp does not endorse third-party bots. Misusing this automation (such as spamming, mass messaging, or rapid pings) carries a high risk of permanent WhatsApp account ban."
+            details="Only use for 1 personal check-in arrival message per day to yourself, family, or your personal group. Never use for unsolicited marketing or high-frequency broadcasts."
+            detailsLabel="SAFE USAGE RULE"
+            actionLabel="Review Safety Policy"
+            onAction={() => setIsDisclaimerModalVisible(true)}
+            collapsible={true}
+            defaultExpanded={false}
+          />
+
           {/* If WhatsApp is NOT Connected: High Visibility Action Banner */}
           {!isBotConnected && (
             <DisconnectedBanner
@@ -764,6 +922,7 @@ export default function App() {
             isBackgroundActive={isBackgroundActive}
             isTogglingBackground={isTogglingBackground}
             onToggleBackground={handleToggleBackground}
+            autoOpenWhatsApp={autoOpenWhatsApp}
             isTriggeredToday={isTriggeredToday}
             lastTriggeredDate={lastTriggeredDate}
             lastTriggeredTime={lastTriggeredTime}
@@ -772,6 +931,7 @@ export default function App() {
             onResetTrigger={handleResetDailyTrigger}
             onTestTriggerNow={handleTestTriggerNow}
             isTestingTrigger={isTestingTrigger}
+            onRemoveAutomation={handleRemoveAutomation}
           />
 
           {/* Choose Wi-Fi Connection Card */}
@@ -784,6 +944,7 @@ export default function App() {
             customSSIDInput={customSSIDInput}
             onScanWifi={handleScanWifi}
             onSelectSSID={handleSelectSSID}
+            onClearTargetSSID={handleClearTargetSSID}
             onChangeCustomSSID={setCustomSSIDInput}
             onSubmitCustomSSID={() => {
               if (customSSIDInput.trim()) {
@@ -809,13 +970,14 @@ export default function App() {
             onSelectFilter={setChatFilterType}
             onChangeSearchQuery={setChatSearchQuery}
             onSelectRecipient={handleSelectRecipient}
+            onRemoveRecipient={handleRemoveRecipient}
             onChangeCustomPhone={setCustomPhoneInput}
             onSubmitCustomPhone={() => {
               const clean = customPhoneInput.trim().replace(/[^\d+]/g, '');
               if (clean) {
                 const digits = clean.replace(/[^\d]/g, '');
                 handleSelectRecipient({
-                  id: `${digits}@c.us`,
+                  id: `${digits}@s.whatsapp.net`,
                   name: clean,
                   isGroup: false,
                   phone: clean,
@@ -840,14 +1002,16 @@ export default function App() {
             autoOpenWhatsApp={autoOpenWhatsApp}
             useBot={useBot}
             botUrl={botUrl}
+            userId={userId}
             botStatusInfo={botStatusInfo}
             isBotConnected={isBotConnected}
             isCheckingBot={isCheckingBot}
             isSendingBot={isSendingBot}
             targetRecipient={targetRecipient}
-            onToggleAutoOpen={setAutoOpenWhatsApp}
+            onToggleAutoOpen={handleToggleAutoOpen}
             onToggleUseBot={setUseBot}
             onChangeBotUrl={handleChangeBotUrl}
+            onChangeUserId={handleChangeUserId}
             onCheckStatus={() => handleCheckBotStatus(false)}
             onOpenQR={handleOpenQR}
             onSendTestMessage={() => handleSendViaBot(targetRecipient, activeMessage)}
@@ -867,9 +1031,22 @@ export default function App() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* First-Time / On-Demand Unofficial Notice & Ban Risk Disclaimer Modal */}
+      <DisclaimerModal
+        visible={isDisclaimerModalVisible}
+        canDismissWithoutAccepting={hasAcceptedDisclaimer}
+        onCancel={() => setIsDisclaimerModalVisible(false)}
+        onAccept={async () => {
+          await saveDisclaimerAccepted(true);
+          setHasAcceptedDisclaimer(true);
+          setIsDisclaimerModalVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {

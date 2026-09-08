@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { PORT } = require('./src/config');
-const { client, initClient } = require('./src/whatsappClient');
+const { client, initAllSavedSessions } = require('./src/whatsappClient');
 const routes = require('./src/routes');
 
 // Global process error handlers to prevent unexpected exits
@@ -31,8 +31,8 @@ app.use(express.json());
 // Mount modular API routes
 app.use('/', routes);
 
-// Initialize WhatsApp Client (Puppeteer & LocalAuth)
-initClient();
+// Initialize all saved user sessions (Baileys multi-account support)
+initAllSavedSessions();
 
 // Start HTTP Server
 app.listen(PORT, '0.0.0.0', () => {

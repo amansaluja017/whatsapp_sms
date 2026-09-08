@@ -29,6 +29,7 @@ export default function WifiSelectorCard({
   onSelectSSID,
   onChangeCustomSSID,
   onSubmitCustomSSID,
+  onClearTargetSSID,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -83,12 +84,9 @@ export default function WifiSelectorCard({
           activeOpacity={0.7}
         >
           {isScanningWifi ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <ActivityIndicator size="small" color={COLORS.white} />
-              <Text style={styles.outlineBadgeText}>Scanning...</Text>
-            </View>
+            <ActivityIndicator size="small" color={COLORS.white} />
           ) : (
-            <Text style={styles.outlineBadgeText}>🔄 Scan Wi-Fi</Text>
+            <Text style={styles.outlineBadgeText}>⚡ Scan Networks</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -101,15 +99,28 @@ export default function WifiSelectorCard({
             {targetSSID || 'None Selected'}
           </Text>
           <Text style={styles.activeTargetDesc}>
-            {isTargetCurrentlyConnected
+            {!targetSSID
+              ? 'No trigger router selected. Tap any network below to automate.'
+              : isTargetCurrentlyConnected
               ? '● Phone is connected to this trigger network now.'
               : 'Messages will auto-send whenever you connect to this Wi-Fi.'}
           </Text>
         </View>
-        <View style={isTargetCurrentlyConnected ? styles.connectedPill : styles.targetPill}>
-          <Text style={isTargetCurrentlyConnected ? styles.connectedPillText : styles.targetPillText}>
-            {isTargetCurrentlyConnected ? 'CONNECTED' : 'TRIGGER'}
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {targetSSID && onClearTargetSSID && (
+            <TouchableOpacity
+              style={styles.removeTargetButton}
+              onPress={onClearTargetSSID}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.removeTargetButtonText}>✕ Remove</Text>
+            </TouchableOpacity>
+          )}
+          <View style={isTargetCurrentlyConnected ? styles.connectedPill : styles.targetPill}>
+            <Text style={isTargetCurrentlyConnected ? styles.connectedPillText : styles.targetPillText}>
+              {!targetSSID ? 'NONE' : isTargetCurrentlyConnected ? 'CONNECTED' : 'TRIGGER'}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -714,5 +725,20 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 11,
     fontWeight: '600',
+  },
+  removeTargetButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeTargetButtonText: {
+    color: '#F87171',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

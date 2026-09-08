@@ -15,6 +15,7 @@ export default function BotSettingsCard({
   autoOpenWhatsApp,
   useBot,
   botUrl,
+  userId = 'default',
   botStatusInfo,
   isBotConnected,
   isCheckingBot,
@@ -23,6 +24,7 @@ export default function BotSettingsCard({
   onToggleAutoOpen,
   onToggleUseBot,
   onChangeBotUrl,
+  onChangeUserId,
   onCheckStatus,
   onOpenQR,
   onSendTestMessage,
@@ -115,7 +117,35 @@ export default function BotSettingsCard({
             onChangeText={onChangeBotUrl}
           />
 
-          <View style={{ gap: 8, marginTop: 12 }}>
+          <Text style={[styles.inputLabel, { marginTop: 12 }]}>
+            User ID / Session Name (for Multi-User):
+          </Text>
+          <View style={styles.idRow}>
+            <TextInput
+              style={[styles.textInput, { flex: 1 }]}
+              placeholder="e.g. default, aman, device_1"
+              placeholderTextColor="#52525B"
+              value={userId}
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={onChangeUserId}
+            />
+            <TouchableOpacity
+              style={styles.actionPillButton}
+              onPress={() => {
+                const randomSuffix = Math.random().toString(36).substring(2, 6);
+                onChangeUserId && onChangeUserId(`user_${randomSuffix}`);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.actionPillButtonText}>🎲 New ID</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.subHelpText}>
+            Each user or device must have a unique ID to link their own WhatsApp account independently on the bot server.
+          </Text>
+
+          <View style={{ gap: 8, marginTop: 14 }}>
             <TouchableOpacity
               style={styles.secondaryButton}
               onPress={onCheckStatus}
@@ -126,7 +156,7 @@ export default function BotSettingsCard({
                 <ActivityIndicator color={COLORS.white} size="small" />
               ) : (
                 <Text style={styles.secondaryButtonText} numberOfLines={1}>
-                  🔍 Check Bot Connection Status
+                  🔍 Check Bot Connection Status ({userId || 'default'})
                 </Text>
               )}
             </TouchableOpacity>
@@ -137,7 +167,7 @@ export default function BotSettingsCard({
               activeOpacity={0.8}
             >
               <Text style={styles.secondaryButtonText} numberOfLines={1}>
-                🔗 Open Pairing QR Page in Browser (/qr)
+                🔗 Open Pairing QR for "{userId || 'default'}" (/qr)
               </Text>
             </TouchableOpacity>
 
@@ -244,6 +274,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.borderDefault,
     minHeight: 44,
+  },
+  idRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionPillButton: {
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionPillButtonText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  subHelpText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 4,
+    lineHeight: 15,
   },
   primaryButton: {
     backgroundColor: COLORS.white,

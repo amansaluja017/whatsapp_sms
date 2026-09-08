@@ -11,9 +11,13 @@ import {
   TARGET_RECIPIENT_KEY,
   CACHED_CHATS_KEY,
   MESSAGE_TEMPLATE_KEY,
+  AUTO_OPEN_KEY,
+  DISCLAIMER_ACCEPTED_KEY,
+  USER_ID_KEY,
   DEFAULT_MESSAGE_TEMPLATE,
   DEFAULT_TARGET_SSID,
   DEFAULT_BOT_URL,
+  DEFAULT_USER_ID,
   DEFAULT_RECIPIENT,
 } from '../constants/config';
 
@@ -31,6 +35,8 @@ export async function loadStoredSettings() {
       savedRecipient,
       cachedChats,
       savedTemplate,
+      savedAutoOpen,
+      savedUserId,
     ] = await Promise.all([
       AsyncStorage.getItem(LAST_TRIGGER_DATE_KEY),
       AsyncStorage.getItem(LAST_TRIGGER_TIME_KEY),
@@ -43,6 +49,8 @@ export async function loadStoredSettings() {
       AsyncStorage.getItem(TARGET_RECIPIENT_KEY),
       AsyncStorage.getItem(CACHED_CHATS_KEY),
       AsyncStorage.getItem(MESSAGE_TEMPLATE_KEY),
+      AsyncStorage.getItem(AUTO_OPEN_KEY),
+      AsyncStorage.getItem(USER_ID_KEY),
     ]);
 
     let parsedNets = [DEFAULT_TARGET_SSID];
@@ -78,6 +86,7 @@ export async function loadStoredSettings() {
 
     // Default background monitoring to enabled (true)
     const backgroundMonitoring = savedBgMonitoring !== null ? savedBgMonitoring === 'true' : true;
+    const autoOpenWhatsApp = savedAutoOpen !== null ? savedAutoOpen === 'true' : true;
 
     return {
       lastTriggeredDate: savedDate || null,
@@ -85,7 +94,9 @@ export async function loadStoredSettings() {
       lastTriggeredSSID: savedTriggerSSID || null,
       lastTriggerDetails: parsedDetails,
       backgroundMonitoring,
+      autoOpenWhatsApp,
       botUrl: savedBotUrl || DEFAULT_BOT_URL,
+      userId: (savedUserId && savedUserId.trim()) || DEFAULT_USER_ID,
       targetSSID: savedTarget || DEFAULT_TARGET_SSID,
       savedNetworks: parsedNets,
       targetRecipient: parsedRecipient,
@@ -98,11 +109,21 @@ export async function loadStoredSettings() {
   }
 }
 
+export async function saveUserId(userId) {
+  if (!userId || !userId.trim()) {
+    return AsyncStorage.removeItem(USER_ID_KEY);
+  }
+  return AsyncStorage.setItem(USER_ID_KEY, userId.trim());
+}
+
 export async function saveMessageTemplate(template) {
   return AsyncStorage.setItem(MESSAGE_TEMPLATE_KEY, template);
 }
 
 export async function saveTargetSSID(ssid) {
+  if (!ssid) {
+    return AsyncStorage.removeItem(TARGET_SSID_KEY);
+  }
   return AsyncStorage.setItem(TARGET_SSID_KEY, ssid);
 }
 
@@ -111,7 +132,14 @@ export async function saveSavedNetworks(networks) {
 }
 
 export async function saveTargetRecipient(recipient) {
+  if (!recipient) {
+    return AsyncStorage.removeItem(TARGET_RECIPIENT_KEY);
+  }
   return AsyncStorage.setItem(TARGET_RECIPIENT_KEY, JSON.stringify(recipient));
+}
+
+export async function saveAutoOpenWhatsApp(enabled) {
+  return AsyncStorage.setItem(AUTO_OPEN_KEY, enabled ? 'true' : 'false');
 }
 
 export async function saveCachedChats(chats) {
@@ -143,6 +171,15 @@ export async function saveTriggerEvent(dateStr, ssid, timeStr = null, details = 
   await Promise.all(tasks);
 }
 
+export async function saveDisclaimerAccepted(accepted = true) {
+  return AsyncStorage.setItem(DISCLAIMER_ACCEPTED_KEY, accepted ? 'true' : 'false');
+}
+
+export async function isDisclaimerAccepted() {
+  const val = await AsyncStorage.getItem(DISCLAIMER_ACCEPTED_KEY);
+  return val === 'true';
+}
+
 export async function clearDailyTrigger() {
   await Promise.all([
     AsyncStorage.removeItem(LAST_TRIGGER_DATE_KEY),
@@ -151,3 +188,4 @@ export async function clearDailyTrigger() {
     AsyncStorage.removeItem(LAST_TRIGGER_DETAILS_KEY),
   ]);
 }
+

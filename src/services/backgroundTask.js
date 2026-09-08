@@ -1,6 +1,6 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
-import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -147,6 +147,7 @@ export async function checkAndTriggerWifiMessage(triggerSource = 'auto', forceOv
       ssid,
       recipient: stored.targetRecipient?.name || stored.targetRecipient?.phone,
       recipientId: stored.targetRecipient?.id,
+      userId: stored.userId || 'default',
       message,
       triggerSource,
       isFallback,
@@ -161,7 +162,13 @@ export async function checkAndTriggerWifiMessage(triggerSource = 'auto', forceOv
 
     if (stored.botUrl) {
       try {
-        sendResult = await sendWhatsAppMessageApi(stored.botUrl, stored.targetRecipient, message, 20000);
+        sendResult = await sendWhatsAppMessageApi(
+          stored.botUrl,
+          stored.targetRecipient,
+          message,
+          20000,
+          stored.userId || 'default'
+        );
       } catch (err) {
         sendError = err.message;
       }
@@ -220,13 +227,10 @@ TaskManager.defineTask(BACKGROUND_WIFI_TASK, async ({ data, error }) => {
 
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
-    const res = await checkAndTriggerWifiMessage('background_fetch');
-    if (res?.triggered) {
-      return BackgroundFetch.BackgroundFetchResult.NewData;
-    }
-    return BackgroundFetch.BackgroundFetchResult.NoData;
+    await checkAndTriggerWifiMessage('background_fetch');
+    return BackgroundTask.BackgroundTaskResult.Success;
   } catch (e) {
-    return BackgroundFetch.BackgroundFetchResult.Failed;
+    return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });
 
@@ -291,18 +295,16 @@ export async function startBackgroundMonitoringAsync(targetSSID = DEFAULT_TARGET
       pausesUpdatesAutomatically: false,
     });
 
-    // 4. Register BackgroundFetch as backup runner
+    // 4. Register BackgroundTask as backup runner
     try {
       const isFetchRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
       if (!isFetchRegistered) {
-        await BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
-          minimumInterval: 15 * 60, // 15 minutes
-          stopOnTerminate: false,
-          startOnBoot: true,
+        await BackgroundTask.registerTaskAsync(BACKGROUND_FETCH_TASK, {
+          minimumInterval: 15, // 15 minutes
         });
       }
     } catch (e) {
-      console.warn('Background fetch registration notice:', e?.message);
+      console.warn('Background task registration notice:', e?.message);
     }
 
     await saveBackgroundMonitoring(true);
@@ -325,7 +327,7 @@ export async function stopBackgroundMonitoringAsync() {
 
     const isFetchRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
     if (isFetchRegistered) {
-      await BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK).catch(() => {});
+      await BackgroundTask.unregisterTaskAsync(BACKGROUND_FETCH_TASK).catch(() => {});
     }
 
     await saveBackgroundMonitoring(false);

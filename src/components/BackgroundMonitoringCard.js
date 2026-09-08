@@ -14,6 +14,7 @@ export default function BackgroundMonitoringCard({
   isBackgroundActive,
   isTogglingBackground,
   onToggleBackground,
+  autoOpenWhatsApp,
   isTriggeredToday,
   lastTriggeredDate,
   lastTriggeredTime,
@@ -22,30 +23,47 @@ export default function BackgroundMonitoringCard({
   onResetTrigger,
   onTestTriggerNow,
   isTestingTrigger,
+  onRemoveAutomation,
 }) {
+  const isAutomationDisabled = !isBackgroundActive && !autoOpenWhatsApp;
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isAutomationDisabled && styles.cardDisabled]}>
       {/* Header */}
       <View style={styles.cardHeader}>
         <View style={styles.headerTitleRow}>
-          <Text style={styles.cardIcon}>📱</Text>
+          <Text style={styles.cardIcon}>{isAutomationDisabled ? '⏸️' : '📱'}</Text>
           <Text style={styles.cardLabel} numberOfLines={1}>
-            BACKGROUND PHONE MONITOR
+            {isAutomationDisabled ? 'AUTOMATION PAUSED' : 'BACKGROUND PHONE MONITOR'}
           </Text>
         </View>
         <View
           style={[
             styles.badge,
-            isBackgroundActive ? styles.badgeActive : styles.badgeMuted,
+            isAutomationDisabled
+              ? styles.badgeDisabled
+              : isBackgroundActive
+              ? styles.badgeActive
+              : styles.badgeMuted,
           ]}
         >
           <Text
             style={[
               styles.badgeText,
-              { color: isBackgroundActive ? '#10B981' : COLORS.textSecondary },
+              {
+                color: isAutomationDisabled
+                  ? '#EF4444'
+                  : isBackgroundActive
+                  ? '#10B981'
+                  : COLORS.textSecondary,
+              },
             ]}
           >
-            {isBackgroundActive ? '● RUNNING' : '○ STOPPED'}
+            {isAutomationDisabled
+              ? '✕ REMOVED'
+              : isBackgroundActive
+              ? '● RUNNING'
+              : '○ STOPPED'}
           </Text>
         </View>
       </View>
@@ -83,22 +101,45 @@ export default function BackgroundMonitoringCard({
           <View
             style={[
               styles.statusPill,
-              isTriggeredToday ? styles.statusPillTriggered : styles.statusPillArmed,
+              isAutomationDisabled
+                ? styles.statusPillDisabled
+                : isTriggeredToday
+                ? styles.statusPillTriggered
+                : styles.statusPillArmed,
             ]}
           >
             <Text
               style={[
                 styles.statusPillText,
-                { color: isTriggeredToday ? '#10B981' : '#F59E0B' },
+                {
+                  color: isAutomationDisabled
+                    ? '#EF4444'
+                    : isTriggeredToday
+                    ? '#10B981'
+                    : '#F59E0B',
+                },
               ]}
               numberOfLines={1}
             >
-              {isTriggeredToday ? '✓ SENT TODAY' : '⚡ ARMED & READY'}
+              {isAutomationDisabled
+                ? '✕ OFF'
+                : isTriggeredToday
+                ? '✓ SENT TODAY'
+                : '⚡ ARMED & READY'}
             </Text>
           </View>
         </View>
 
-        {isTriggeredToday ? (
+        {isAutomationDisabled ? (
+          <View style={styles.detailsBox}>
+            <Text style={[styles.detailsRow, { color: '#F87171' }]}>
+              Automated Wi-Fi dispatch is currently turned off.
+            </Text>
+            <Text style={styles.detailsSubtext}>
+              Turn on Background Service above or auto-send to re-arm automation.
+            </Text>
+          </View>
+        ) : isTriggeredToday ? (
           <View style={styles.detailsBox}>
             <Text style={styles.detailsRow}>
               🕒 Dispatched:{' '}
@@ -109,17 +150,9 @@ export default function BackgroundMonitoringCard({
             <Text style={styles.detailsRow} numberOfLines={1} ellipsizeMode="tail">
               📶 Router:{' '}
               <Text style={styles.detailsHighlight}>
-                "{lastTriggeredSSID || targetSSID}"
+                {lastTriggeredSSID || targetSSID || 'Matched Wi-Fi'}
               </Text>
             </Text>
-            {lastTriggerDetails?.recipient && (
-              <Text style={styles.detailsRow} numberOfLines={1} ellipsizeMode="tail">
-                👤 Recipient:{' '}
-                <Text style={styles.detailsHighlight}>
-                  {lastTriggerDetails.recipient}
-                </Text>
-              </Text>
-            )}
             {lastTriggerDetails?.message && (
               <Text style={styles.detailsRow} numberOfLines={2} ellipsizeMode="tail">
                 💬 Message:{' '}
@@ -172,6 +205,28 @@ export default function BackgroundMonitoringCard({
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Remove / Disable Automation Action */}
+      <TouchableOpacity
+        style={[
+          styles.removeAutomationButton,
+          isAutomationDisabled && styles.reEnableAutomationButton,
+        ]}
+        onPress={onRemoveAutomation}
+        activeOpacity={0.8}
+      >
+        <Text
+          style={[
+            styles.removeAutomationButtonText,
+            isAutomationDisabled && styles.reEnableAutomationButtonText,
+          ]}
+          numberOfLines={1}
+        >
+          {isAutomationDisabled
+            ? '⚡ Turn Automation Back On'
+            : '🛑 Remove / Turn Off Automation'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -366,6 +421,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  cardDisabled: {
+    borderColor: '#7F1D1D',
+    borderWidth: 1,
+  },
+  badgeDisabled: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: '#EF4444',
+  },
+  statusPillDisabled: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: '#EF4444',
+  },
+  removeAutomationButton: {
+    marginTop: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeAutomationButtonText: {
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  reEnableAutomationButton: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: '#10B981',
+  },
+  reEnableAutomationButtonText: {
+    color: '#10B981',
   },
 });
 

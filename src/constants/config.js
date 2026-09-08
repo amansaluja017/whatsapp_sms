@@ -13,8 +13,12 @@ export const TARGET_RECIPIENT_KEY = '@whatsapp_sms:target_recipient';
 export const CACHED_CHATS_KEY = '@whatsapp_sms:cached_chats';
 
 export const MESSAGE_TEMPLATE_KEY = '@whatsapp_sms:message_template';
+export const AUTO_OPEN_KEY = '@whatsapp_sms:auto_open_whatsapp';
+export const DISCLAIMER_ACCEPTED_KEY = '@whatsapp_sms:disclaimer_accepted';
+export const USER_ID_KEY = '@whatsapp_sms:user_id';
 
 export const DEFAULT_BOT_URL = process.env.EXPO_PUBLIC_BOT_URL || 'http://localhost:3001';
+export const DEFAULT_USER_ID = process.env.EXPO_PUBLIC_DEFAULT_USER_ID || 'default';
 export const DEFAULT_MESSAGE_TEMPLATE = process.env.EXPO_PUBLIC_DEFAULT_MESSAGE_TEMPLATE || '';
 
 export const TEST_PREBUILD_MESSAGES = [

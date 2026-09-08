@@ -1,6 +1,7 @@
 const {
   getSession,
   initSession,
+  initAllSavedSessions,
   sanitizeUserId,
 } = require('./sessionManager');
 
@@ -29,5 +30,6 @@ function getStatus(rawUserId = 'default') {
 
 module.exports = {
   initClient,
+  initAllSavedSessions,
   getStatus,
 };
