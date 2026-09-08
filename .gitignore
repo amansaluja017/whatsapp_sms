@@ -50,5 +50,7 @@ auth_info_baileys/
 bot-server/.wwebjs_auth/
 .wwebjs_auth/
 .wwebjs_cache/
+.cache/
+bot-server/.cache/
 
 

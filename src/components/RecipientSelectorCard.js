@@ -61,12 +61,12 @@ export default function RecipientSelectorCard({
               <Text style={styles.selectedRecipientLabel}>CURRENT TARGET:</Text>
               <Text style={styles.selectedRecipientName} numberOfLines={1}>
                 {targetRecipient.isGroup ? '👥 ' : '👤 '}
-                {targetRecipient.name}
+                {targetRecipient?.name || targetRecipient?.phone || 'Selected Contact'}
               </Text>
               <Text style={styles.selectedRecipientSubtext} numberOfLines={1}>
                 {targetRecipient.isGroup
                   ? 'Group Conversation'
-                  : targetRecipient.phone || targetRecipient.id}
+                  : targetRecipient?.phone || targetRecipient?.id || ''}
               </Text>
             </View>
             <View style={styles.solidPill}>
@@ -181,7 +181,7 @@ export default function RecipientSelectorCard({
             style={{ maxHeight: 240 }}
             showsVerticalScrollIndicator={true}
           >
-            {filteredChats.slice(0, 60).map((chat) => {
+            {(filteredChats || []).filter(Boolean).slice(0, 60).map((chat) => {
               const isSelected = targetRecipient?.id === chat.id;
               return (
                 <TouchableOpacity
@@ -206,7 +206,7 @@ export default function RecipientSelectorCard({
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {chat.name}
+                        {chat.name || chat.phone || 'Unnamed'}
                       </Text>
                       <Text style={styles.chatItemSubtext} numberOfLines={1} ellipsizeMode="tail">
                         {chat.isGroup ? 'Group Conversation' : (chat.phone || 'Contact')}

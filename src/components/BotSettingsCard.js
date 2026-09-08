@@ -142,16 +142,16 @@ export default function BotSettingsCard({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.primaryButton, !targetRecipient && { opacity: 0.6 }]}
               onPress={onSendTestMessage}
-              disabled={isSendingBot}
+              disabled={isSendingBot || !targetRecipient}
               activeOpacity={0.8}
             >
               {isSendingBot ? (
                 <ActivityIndicator color={COLORS.black} size="small" />
               ) : (
                 <Text style={styles.primaryButtonText} numberOfLines={1}>
-                  ⚡ Send Message to {targetRecipient.name} Now
+                  ⚡ Send Message to {targetRecipient?.name || 'Recipient'} Now
                 </Text>
               )}
             </TouchableOpacity>

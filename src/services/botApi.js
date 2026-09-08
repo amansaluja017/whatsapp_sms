@@ -24,8 +24,8 @@ export async function fetchBotStatus(botUrl, timeoutMs = 5000) {
     return { ok: res.ok, data };
   } catch (err) {
     clearTimeout(timer);
-    const isTimeout = err.name === 'AbortError';
-    throw new Error(isTimeout ? 'Connection timed out after 5s' : err.message);
+    const isTimeout = err?.name === 'AbortError';
+    throw new Error(isTimeout ? 'Connection timed out after 5s' : err?.message || 'Error');
   }
 }
 
@@ -43,8 +43,8 @@ export async function fetchWhatsAppChatsApi(botUrl, timeoutMs = 12000) {
     return { ok: res.ok, status: res.status, data };
   } catch (err) {
     clearTimeout(timer);
-    const isTimeout = err.name === 'AbortError';
-    throw new Error(isTimeout ? 'Request timed out after 12s' : err.message);
+    const isTimeout = err?.name === 'AbortError';
+    throw new Error(isTimeout ? 'Request timed out after 12s' : err?.message || 'Error');
   }
 }
 
@@ -82,7 +82,7 @@ export async function sendWhatsAppMessageApi(botUrl, recipient, message, timeout
     };
   } catch (err) {
     clearTimeout(timer);
-    const isTimeout = err.name === 'AbortError';
-    throw new Error(isTimeout ? 'Delivery timed out after 15s' : err.message);
+    const isTimeout = err?.name === 'AbortError';
+    throw new Error(isTimeout ? 'Delivery timed out after 15s' : err?.message || 'Error');
   }
 }

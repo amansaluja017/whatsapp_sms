@@ -20,8 +20,41 @@ try {
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const AUTH_DATA_PATH = process.env.AUTH_DATA_PATH || path.join(__dirname, '..', '.wwebjs_auth');
 
+function getPuppeteerExecutablePath() {
+  // 1. Explicit environment variable override
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    if (fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+      return process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+    console.warn(`[Config] PUPPETEER_EXECUTABLE_PATH "${process.env.PUPPETEER_EXECUTABLE_PATH}" not found.`);
+  }
+
+  // 2. Check for installed system Chrome/Chromium (local Linux, Mac, Windows)
+  const candidatePaths = [
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+
+  for (const candidate of candidatePaths) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  // 3. Return undefined to let Puppeteer use its bundled/cached browser (Render / Cloud)
+  return undefined;
+}
+
+const resolvedExecutable = getPuppeteerExecutablePath();
+
 const PUPPETEER_CONFIG = {
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+  ...(resolvedExecutable ? { executablePath: resolvedExecutable } : {}),
   headless: process.env.PUPPETEER_HEADLESS !== 'false',
   args: [
     '--no-sandbox',
@@ -31,6 +64,7 @@ const PUPPETEER_CONFIG = {
     '--no-first-run',
     '--no-zygote',
     '--disable-gpu',
+    '--single-process',
   ],
 };
 

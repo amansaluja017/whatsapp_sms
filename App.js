@@ -378,7 +378,7 @@ export default function App() {
     await saveTargetRecipient(rec);
     Alert.alert(
       'Recipient Selected',
-      `Target set to:\n"${rec.name}" (${rec.isGroup ? 'Group' : 'Contact'})\n\nMessages will be delivered here upon Wi-Fi connection.`
+      `Target set to:\n"${rec.name || rec.phone || 'Recipient'}" (${rec.isGroup ? 'Group' : 'Contact'})\n\nMessages will be delivered here upon Wi-Fi connection.`
     );
   }, []);
 
@@ -680,7 +680,7 @@ export default function App() {
 
   // Filtered WhatsApp contacts & groups for recipient selection
   const filteredChats = useMemo(() => {
-    let list = whatsappChats;
+    let list = Array.isArray(whatsappChats) ? whatsappChats.filter(Boolean) : [];
     if (chatFilterType === 'contacts') {
       list = list.filter((c) => !c.isGroup);
     } else if (chatFilterType === 'groups') {
