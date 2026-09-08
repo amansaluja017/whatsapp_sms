@@ -26,7 +26,10 @@ function getPuppeteerExecutablePath() {
     if (fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
       return process.env.PUPPETEER_EXECUTABLE_PATH;
     }
-    console.warn(`[Config] PUPPETEER_EXECUTABLE_PATH "${process.env.PUPPETEER_EXECUTABLE_PATH}" not found.`);
+    console.warn(`[Config] PUPPETEER_EXECUTABLE_PATH "${process.env.PUPPETEER_EXECUTABLE_PATH}" not found. Deleting from process.env to prevent Puppeteer launcher crash.`);
+    // IMPORTANT: Puppeteer internally reads process.env.PUPPETEER_EXECUTABLE_PATH even if not passed in options.
+    // If it does not exist on disk, we must delete it so Puppeteer falls back to its bundled/cached binary!
+    delete process.env.PUPPETEER_EXECUTABLE_PATH;
   }
 
   // 2. Check for installed system Chrome/Chromium (local Linux, Mac, Windows)
@@ -47,7 +50,18 @@ function getPuppeteerExecutablePath() {
     }
   }
 
-  // 3. Return undefined to let Puppeteer use its bundled/cached browser (Render / Cloud)
+  // 3. Resolve bundled/cached Puppeteer browser (Render / Cloud container)
+  try {
+    const puppeteer = require('puppeteer');
+    const autoPath = puppeteer.executablePath();
+    if (autoPath && fs.existsSync(autoPath)) {
+      console.log(`[Config] Using bundled Puppeteer Chrome at: ${autoPath}`);
+      return autoPath;
+    }
+  } catch (e) {
+    console.warn('[Config] Puppeteer auto executablePath resolution error:', e.message);
+  }
+
   return undefined;
 }
 
