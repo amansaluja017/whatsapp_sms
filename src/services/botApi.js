@@ -4,13 +4,14 @@ export function getCleanUrl(url) {
   return (url || '').trim().replace(/\/+$/, '');
 }
 
-export function openBrowserQR(botUrl) {
+export function openBrowserQR(botUrl, userId = 'default') {
   const clean = getCleanUrl(botUrl);
   if (!clean) return Promise.reject(new Error('Bot URL is empty'));
-  return Linking.openURL(`${clean}/qr`);
+  const qs = userId && userId !== 'default' ? `?userId=${encodeURIComponent(userId)}` : '';
+  return Linking.openURL(`${clean}/qr${qs}`);
 }
 
-export async function fetchBotStatus(botUrl, timeoutMs = 5000) {
+export async function fetchQRCodeData(botUrl, userId = 'default', timeoutMs = 6000) {
   const clean = getCleanUrl(botUrl);
   if (!clean) throw new Error('Missing Bot Server URL');
 
@@ -18,7 +19,28 @@ export async function fetchBotStatus(botUrl, timeoutMs = 5000) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(`${clean}/status`, { signal: controller.signal });
+    const qs = userId && userId !== 'default' ? `?userId=${encodeURIComponent(userId)}` : '';
+    const res = await fetch(`${clean}/qr-data${qs}`, { signal: controller.signal });
+    clearTimeout(timer);
+    const data = await res.json();
+    return { ok: res.ok, status: res.status, data };
+  } catch (err) {
+    clearTimeout(timer);
+    const isTimeout = err?.name === 'AbortError';
+    throw new Error(isTimeout ? 'QR request timed out' : err?.message || 'Error');
+  }
+}
+
+export async function fetchBotStatus(botUrl, timeoutMs = 5000, userId = 'default') {
+  const clean = getCleanUrl(botUrl);
+  if (!clean) throw new Error('Missing Bot Server URL');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const qs = userId && userId !== 'default' ? `?userId=${encodeURIComponent(userId)}` : '';
+    const res = await fetch(`${clean}/status${qs}`, { signal: controller.signal });
     clearTimeout(timer);
     const data = await res.json();
     return { ok: res.ok, data };
@@ -29,7 +51,7 @@ export async function fetchBotStatus(botUrl, timeoutMs = 5000) {
   }
 }
 
-export async function fetchWhatsAppChatsApi(botUrl, timeoutMs = 12000) {
+export async function fetchWhatsAppChatsApi(botUrl, timeoutMs = 12000, userId = 'default') {
   const clean = getCleanUrl(botUrl);
   if (!clean) throw new Error('Missing Bot Server URL');
 
@@ -37,7 +59,8 @@ export async function fetchWhatsAppChatsApi(botUrl, timeoutMs = 12000) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(`${clean}/chats`, { signal: controller.signal });
+    const qs = userId && userId !== 'default' ? `?userId=${encodeURIComponent(userId)}` : '';
+    const res = await fetch(`${clean}/chats${qs}`, { signal: controller.signal });
     clearTimeout(timer);
     const data = await res.json();
     return { ok: res.ok, status: res.status, data };
@@ -48,7 +71,7 @@ export async function fetchWhatsAppChatsApi(botUrl, timeoutMs = 12000) {
   }
 }
 
-export async function sendWhatsAppMessageApi(botUrl, recipient, message, timeoutMs = 15000) {
+export async function sendWhatsAppMessageApi(botUrl, recipient, message, timeoutMs = 15000, userId = 'default') {
   const clean = getCleanUrl(botUrl);
   if (!clean) throw new Error('Missing Bot Server URL');
 
@@ -60,6 +83,7 @@ export async function sendWhatsAppMessageApi(botUrl, recipient, message, timeout
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        userId,
         chatId: recipient?.id,
         phone: recipient?.phone,
         message,

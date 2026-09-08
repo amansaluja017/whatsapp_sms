@@ -1,52 +1,34 @@
-const { client, getStatus } = require('../whatsappClient');
-const { PORT } = require('../config');
+const { sendSessionMessage, sanitizeUserId } = require('../sessionManager');
+
+function getUserIdFromReq(req) {
+  return req.body?.userId || req.query?.userId || req.headers?.['x-user-id'] || 'default';
+}
 
 async function sendMessageHandler(req, res) {
-  const { phone, chatId: reqChatId, message } = req.body;
+  const { phone, chatId, message } = req.body || {};
+  const userId = sanitizeUserId(getUserIdFromReq(req));
 
-  if ((!phone && !reqChatId) || !message) {
+  if ((!phone && !chatId) || !message) {
     return res.status(400).json({
       error: 'Missing required parameters: ("chatId" or "phone") and "message" are required.',
     });
   }
 
-  const { connectionStatus } = getStatus();
-
-  if (connectionStatus !== 'connected') {
-    return res.status(503).json({
-      error: `WhatsApp Bot is not connected yet (current status: "${connectionStatus}"). Please scan the QR code first at http://localhost:${PORT}/qr`,
-      status: connectionStatus,
-    });
-  }
-
-  let targetChatId = reqChatId;
-  if (!targetChatId && phone) {
-    const cleanPhone = phone.replace(/[^\d]/g, '');
-    if (cleanPhone.length < 7) {
-      return res.status(400).json({
-        error: `Invalid phone number format: "${phone}". Must include country code (e.g. +1234567890 or +919876543210).`,
-      });
-    }
-    targetChatId = `${cleanPhone}@c.us`;
-  }
-
   try {
-    console.log(`📨 Sending WhatsApp message to ${targetChatId}: "${message}"`);
-    const sentMsg = await client.sendMessage(targetChatId, message);
-    const messageId = sentMsg?.id?._serialized || sentMsg?.id?.id || 'SENT';
-    console.log(`✅ WhatsApp message delivered successfully! ID: ${messageId}`);
-
+    const result = await sendSessionMessage(userId, { phone, chatId, message });
     res.json({
       success: true,
-      messageId,
-      to: targetChatId,
-      message,
-      timestamp: new Date().toISOString(),
+      userId,
+      messageId: result.messageId,
+      to: result.to,
+      message: result.message,
+      timestamp: result.timestamp,
     });
   } catch (err) {
-    console.error('❌ Failed to send WhatsApp message:', err);
+    console.error(`❌ [User: ${userId}] Message delivery error:`, err.message);
     res.status(500).json({
       error: 'Failed to send WhatsApp message: ' + (err.message || String(err)),
+      userId,
     });
   }
 }
